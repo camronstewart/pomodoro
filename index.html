@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#12100e" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='28' fill='%23e85d4c'/%3E%3Ccircle cx='32' cy='14' r='5' fill='%233dba9a'/%3E%3C/svg%3E" />
+  <title>25:00 · Work</title>
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Pomodoro">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <style>
+    :root {
+      --bg: #12100e;
+      --bg-2: #1a1613;
+      --surface: #211c18;
+      --surface-2: #2a241f;
+      --ink: #f4ebe3;
+      --muted: #9a8f84;
+      --faint: #6e655c;
+      --line: rgba(244, 235, 227, 0.08);
+      --accent: #e85d4c;
+      --accent-2: #ff8a76;
+      --ok: #3dba9a;
+      --shadow: 0 18px 50px rgba(0, 0, 0, 0.35);
+      --radius: 22px;
+      --font: "Segoe UI", ui-sans-serif, system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif;
+      --mono: "SF Mono", ui-monospace, "Cascadia Mono", "Segoe UI Mono", Menlo, Consolas, monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { min-height: 100%; }
+    body {
+      font-family: var(--font);
+      background:
+        radial-gradient(1200px 600px at 50% -10%, color-mix(in srgb, var(--accent) 22%, transparent), transparent 60%),
+        radial-gradient(800px 400px at 100% 100%, rgba(125, 140, 255, 0.08), transparent 50%),
+        var(--bg);
+      color: var(--ink);
+      padding: calc(20px + env(safe-area-inset-top)) 16px calc(32px + env(safe-area-inset-bottom));
+      -webkit-font-smoothing: antialiased;
+    }
+    button, input { font: inherit; color: inherit; }
+    button {
+      cursor: pointer;
+      border: 0;
+      background: none;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+    }
+    button:disabled { opacity: 0.4; cursor: default; }
+
+    .app {
+      width: min(440px, 100%);
+      margin: 0 auto;
+      display: grid;
+      gap: 16px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 4px 4px 0;
+    }
+    .brand h1 {
+      font-size: 0.92rem;
+      font-weight: 650;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .today {
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 6px 12px;
+    }
+    .today strong {
+      font-variant-numeric: tabular-nums;
+      font-size: 1.05rem;
+    }
+    .today span { color: var(--muted); font-size: 0.78rem; }
+
+    .timer-card {
+      background: linear-gradient(180deg, var(--surface) 0%, var(--bg-2) 100%);
+      border: 1px solid var(--line);
+      border-radius: 28px;
+      padding: 22px 20px 20px;
+      box-shadow: var(--shadow);
+      text-align: center;
+    }
+
+    #mode {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.78rem;
+      font-weight: 650;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--accent);
+      background: color-mix(in srgb, var(--accent) 12%, transparent);
+      border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
+      border-radius: 999px;
+      padding: 6px 12px;
+    }
+    #mode::before {
+      content: "";
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 22%, transparent);
+    }
+
+    .dial {
+      position: relative;
+      width: min(280px, 78vw);
+      aspect-ratio: 1;
+      margin: 18px auto 8px;
+    }
+    .dial svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+    .dial .track { fill: none; stroke: var(--surface-2); stroke-width: 10; }
+    .dial .progress {
+      fill: none;
+      stroke: var(--accent);
+      stroke-width: 10;
+      stroke-linecap: round;
+      transition: stroke 0.4s ease;
+    }
+    #time {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      font-family: var(--mono);
+      font-size: clamp(3rem, 14vw, 4.4rem);
+      font-weight: 560;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: -0.04em;
+      line-height: 1;
+    }
+
+    .dots {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      margin: 6px 0 16px;
+    }
+    .dots i {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--surface-2);
+      border: 1px solid var(--line);
+    }
+    .dots i.on { background: var(--accent); border-color: transparent; }
+
+    .controls {
+      display: grid;
+      grid-template-columns: 1.3fr 1fr 1fr 1fr;
+      gap: 8px;
+    }
+    .controls button {
+      min-height: 48px;
+      border-radius: 14px;
+      font-weight: 650;
+      font-size: 0.92rem;
+      border: 1px solid var(--line);
+      background: var(--surface-2);
+    }
+    #btn-start {
+      background: var(--accent);
+      color: #2a100c;
+      border-color: transparent;
+    }
+    #btn-start:hover:not(:disabled) { filter: brightness(1.08); }
+    #btn-pause:hover:not(:disabled),
+    #btn-reset:hover:not(:disabled),
+    #btn-skip:hover:not(:disabled) { background: #332c26; }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 16px;
+    }
+    .card h2 {
+      font-size: 0.78rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 12px;
+    }
+
+    .task-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    #task-input {
+      flex: 1;
+      min-width: 0;
+      background: var(--bg);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-size: 16px;
+      outline: none;
+    }
+    #task-input:focus {
+      border-color: color-mix(in srgb, var(--accent) 55%, var(--line));
+    }
+    #task-add {
+      flex: 0 0 auto;
+      min-width: 64px;
+      border-radius: 12px;
+      padding: 0 14px;
+      background: var(--accent);
+      color: #2a100c;
+      font-weight: 700;
+    }
+    .tasks { list-style: none; display: grid; gap: 8px; }
+    .tasks:empty::after {
+      content: "Add what you’ll focus on this session.";
+      display: block;
+      color: var(--faint);
+      font-size: 0.9rem;
+      padding: 8px 2px 2px;
+    }
+    .task {
+      display: grid;
+      grid-template-columns: 22px 1fr 32px;
+      gap: 10px;
+      align-items: center;
+      background: var(--bg);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 10px 8px 10px 12px;
+    }
+    .task input { width: 16px; height: 16px; accent-color: var(--accent); }
+    .task p {
+      font-size: 0.95rem;
+      word-break: break-word;
+    }
+    .task.done p {
+      color: var(--faint);
+      text-decoration: line-through;
+    }
+    .task .del {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      color: var(--muted);
+      font-size: 1.1rem;
+      line-height: 1;
+    }
+    .task .del:hover { background: var(--surface-2); color: var(--ink); }
+
+    .settings {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .settings label {
+      display: grid;
+      gap: 6px;
+      font-size: 0.75rem;
+      color: var(--muted);
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .settings input {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 10px 12px;
+      font-size: 16px;
+      font-variant-numeric: tabular-nums;
+      outline: none;
+    }
+    .settings input:focus {
+      border-color: color-mix(in srgb, var(--accent) 55%, var(--line));
+    }
+
+    #history { display: grid; gap: 10px; }
+    #history:empty::after {
+      content: "Completed work sessions will land here.";
+      color: var(--faint);
+      font-size: 0.9rem;
+    }
+    .hist {
+      background: var(--bg);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 12px;
+    }
+    .hist header {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+    .hist ul { list-style: none; display: grid; gap: 4px; }
+    .hist li { font-size: 0.9rem; }
+    .hist li.done { color: var(--faint); text-decoration: line-through; }
+    .hist .empty { color: var(--faint); font-size: 0.85rem; }
+
+    body.short { --accent: #3dba9a; --accent-2: #7ee0c6; }
+    body.long { --accent: #7b8cff; --accent-2: #b3bdff; }
+    body.short #btn-start, body.long #btn-start { color: #0c1c18; }
+    body.long #btn-start { color: #121428; }
+
+    @media (max-width: 360px) {
+      .controls { grid-template-columns: 1fr 1fr; }
+      .controls button { font-size: 0.88rem; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .dial .progress { transition: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="brand">
+      <h1>Pomodoro</h1>
+      <div class="today" title="Work sessions completed today">
+        <strong id="count">0</strong>
+        <span>today</span>
+      </div>
+    </div>
+
+    <section class="timer-card">
+      <div id="mode">Work</div>
+      <div class="dial" aria-hidden="true">
+        <svg viewBox="0 0 240 240">
+          <circle class="track" cx="120" cy="120" r="108"></circle>
+          <circle class="progress" id="ring" cx="120" cy="120" r="108"
+            stroke-dasharray="678.584" stroke-dashoffset="0"></circle>
+        </svg>
+        <div id="time">25:00</div>
+      </div>
+      <div class="dots" id="dots"></div>
+      <div class="controls">
+        <button type="button" id="btn-start">Start</button>
+        <button type="button" id="btn-pause">Pause</button>
+        <button type="button" id="btn-reset">Reset</button>
+        <button type="button" id="btn-skip">Skip</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>This session</h2>
+      <form class="task-row" id="task-form">
+        <input id="task-input" type="text" maxlength="120" placeholder="What are you working on?" autocomplete="off" />
+        <button type="submit" id="task-add">Add</button>
+      </form>
+      <ul class="tasks" id="task-list"></ul>
+    </section>
+
+    <section class="card">
+      <h2>Durations</h2>
+      <div class="settings">
+        <label>Work (min)
+          <input id="setting-work" type="number" min="1" max="180" step="1" />
+        </label>
+        <label>Short break
+          <input id="setting-short" type="number" min="1" max="60" step="1" />
+        </label>
+        <label>Long break
+          <input id="setting-long" type="number" min="1" max="90" step="1" />
+        </label>
+        <label>Long after
+          <input id="setting-interval" type="number" min="1" max="12" step="1" />
+        </label>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>History</h2>
+      <div id="history"></div>
+    </section>
+  </div>
+
+  <script>
+    const STORAGE_KEY = "pomodoro.v1";
+    const RING = 2 * Math.PI * 108;
+    const MODE_LABEL = { work: "Work", short: "Short Break", long: "Long Break" };
+    const TITLE_LABEL = { work: "Work", short: "Break", long: "Long Break" };
+
+    const $ = (id) => document.getElementById(id);
+
+    const els = {
+      time: $("time"),
+      mode: $("mode"),
+      count: $("count"),
+      ring: $("ring"),
+      dots: $("dots"),
+      start: $("btn-start"),
+      pause: $("btn-pause"),
+      reset: $("btn-reset"),
+      skip: $("btn-skip"),
+      taskInput: $("task-input"),
+      taskForm: $("task-form"),
+      taskList: $("task-list"),
+      history: $("history"),
+      work: $("setting-work"),
+      short: $("setting-short"),
+      long: $("setting-long"),
+      interval: $("setting-interval"),
+    };
+
+    function todayKey(d = new Date()) {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      return y + "-" + m + "-" + day;
+    }
+
+    function defaultState() {
+      return {
+        settings: { work: 25, short: 5, long: 15, interval: 4 },
+        mode: "work",
+        running: false,
+        endAt: null,
+        remainingMs: 25 * 60 * 1000,
+        pomos: 0,
+        cycle: 0,
+        todayDate: todayKey(),
+        todayCount: 0,
+        tasks: [],
+        history: [],
+      };
+    }
+
+    function load() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return defaultState();
+        const saved = JSON.parse(raw);
+        const base = defaultState();
+        const settings = { ...base.settings, ...(saved.settings || {}) };
+        ["work", "short", "long", "interval"].forEach((k) => {
+          const n = Number(settings[k]);
+          settings[k] = Number.isFinite(n) ? n : base.settings[k];
+        });
+        const mode = MODE_LABEL[saved.mode] ? saved.mode : "work";
+        const tasks = Array.isArray(saved.tasks) ? saved.tasks : [];
+        const history = Array.isArray(saved.history) ? saved.history : [];
+        const state = {
+          settings,
+          mode,
+          running: Boolean(saved.running),
+          endAt: typeof saved.endAt === "number" ? saved.endAt : null,
+          remainingMs: Number(saved.remainingMs),
+          pomos: Number(saved.pomos) || 0,
+          cycle: Math.max(0, Number(saved.cycle) || 0),
+          todayDate: saved.todayDate || todayKey(),
+          todayCount: Number(saved.todayCount) || 0,
+          tasks,
+          history,
+        };
+        if (!Number.isFinite(state.remainingMs) || state.remainingMs < 0) {
+          state.remainingMs = durationMs(state, mode);
+        }
+        return state;
+      } catch {
+        return defaultState();
+      }
+    }
+
+    function save() {
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch {}
+    }
+
+    function durationMs(s, mode = s.mode) {
+      const min = s.settings[mode] || s.settings.work;
+      return Math.max(1, min) * 60 * 1000;
+    }
+
+    function remainingNow() {
+      if (state.running && state.endAt) {
+        return Math.max(0, state.endAt - Date.now());
+      }
+      return Math.max(0, state.remainingMs);
+    }
+
+    function formatTime(ms) {
+      const sec = Math.max(0, Math.ceil(ms / 1000));
+      const m = Math.floor(sec / 60);
+      const s = sec % 60;
+      return String(m).padStart(2, "0") + ":" + String(s).padStart(2, "0");
+    }
+
+    function escapeHtml(str) {
+      return String(str).replace(/[&<>"']/g, (c) => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+      }[c]));
+    }
+
+    function rollToday() {
+      const key = todayKey();
+      if (state.todayDate !== key) {
+        state.todayDate = key;
+        state.todayCount = 0;
+        save();
+      }
+    }
+
+    let audioCtx = null;
+    function unlockAudio() {
+      try {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return;
+        if (!audioCtx) audioCtx = new AC();
+        if (audioCtx.state === "suspended") audioCtx.resume();
+      } catch {}
+    }
+
+    function playChime() {
+      try {
+        unlockAudio();
+        if (!audioCtx) return;
+        const ctx = audioCtx;
+        const t = ctx.currentTime;
+        const master = ctx.createGain();
+        master.gain.setValueAtTime(0.18, t);
+        master.connect(ctx.destination);
+        const notes = [523.25, 659.25, 783.99, 1046.5];
+        notes.forEach((freq, i) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = "sine";
+          osc.frequency.value = freq;
+          const start = t + i * 0.14;
+          gain.gain.setValueAtTime(0.0001, start);
+          gain.gain.exponentialRampToValueAtTime(0.9, start + 0.03);
+          gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.85);
+          osc.connect(gain);
+          gain.connect(master);
+          osc.start(start);
+          osc.stop(start + 0.9);
+        });
+      } catch {}
+    }
+
+    function nextBreak() {
+      const n = Math.max(1, state.settings.interval);
+      if (state.cycle >= n) {
+        state.cycle = 0;
+        return "long";
+      }
+      return "short";
+    }
+
+    function switchMode(mode, { resetTasks } = {}) {
+      state.mode = mode;
+      state.running = false;
+      state.endAt = null;
+      state.remainingMs = durationMs(state, mode);
+      if (resetTasks) state.tasks = [];
+    }
+
+    function completeWorkSession() {
+      state.pomos += 1;
+      state.cycle += 1;
+      state.todayCount += 1;
+      state.history.unshift({
+        id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+        at: new Date().toISOString(),
+        duration: state.settings.work,
+        tasks: state.tasks.map((t) => ({ id: t.id, text: t.text, done: !!t.done })),
+      });
+      if (state.history.length > 80) state.history.length = 80;
+      state.tasks = [];
+    }
+
+    function onTimerEnd({ skipped } = {}) {
+      stopTicking();
+      const wasWork = state.mode === "work";
+      if (wasWork && !skipped) completeWorkSession();
+      if (wasWork) switchMode(nextBreak(), { resetTasks: !skipped });
+      else switchMode("work");
+      save();
+      if (!skipped) playChime();
+      renderAll();
+    }
+
+    function startTimer() {
+      if (state.running) return;
+      unlockAudio();
+      rollToday();
+      const rem = remainingNow() || durationMs(state);
+      state.remainingMs = rem;
+      state.endAt = Date.now() + rem;
+      state.running = true;
+      save();
+      startTicking();
+      renderAll();
+    }
+
+    function pauseTimer() {
+      if (!state.running) return;
+      state.remainingMs = remainingNow();
+      state.running = false;
+      state.endAt = null;
+      save();
+      stopTicking();
+      renderAll();
+    }
+
+    function resetTimer() {
+      state.running = false;
+      state.endAt = null;
+      state.remainingMs = durationMs(state);
+      save();
+      stopTicking();
+      renderAll();
+    }
+
+    function skipTimer() {
+      onTimerEnd({ skipped: true });
+    }
+
+    let tickId = null;
+    function startTicking() {
+      stopTicking();
+      tickId = setInterval(tick, 200);
+      tick();
+    }
+    function stopTicking() {
+      if (tickId) { clearInterval(tickId); tickId = null; }
+    }
+    function tick() {
+      rollToday();
+      const rem = remainingNow();
+      renderTime(rem);
+      if (state.running && rem <= 0) onTimerEnd();
+    }
+
+    function renderTime(rem = remainingNow()) {
+      const label = formatTime(rem);
+      els.time.textContent = label;
+      document.title = label + " · " + TITLE_LABEL[state.mode];
+      const total = durationMs(state);
+      const p = total <= 0 ? 0 : Math.min(1, Math.max(0, rem / total));
+      els.ring.style.strokeDasharray = String(RING);
+      els.ring.style.strokeDashoffset = String(RING * (1 - p));
+    }
+
+    function renderDots() {
+      const n = Math.max(1, Math.min(12, state.settings.interval));
+      const filled = state.mode === "long" ? n : Math.min(n, state.cycle);
+      els.dots.innerHTML = "";
+      for (let i = 0; i < n; i++) {
+        const d = document.createElement("i");
+        if (i < filled) d.className = "on";
+        els.dots.appendChild(d);
+      }
+    }
+
+    function renderTasks() {
+      els.taskList.innerHTML = state.tasks.map((t) => `
+        <li class="task${t.done ? " done" : ""}" data-id="${escapeHtml(t.id)}">
+          <input type="checkbox" ${t.done ? "checked" : ""} aria-label="Complete task" />
+          <p>${escapeHtml(t.text)}</p>
+          <button type="button" class="del" aria-label="Delete task">×</button>
+        </li>
+      `).join("");
+    }
+
+    function renderHistory() {
+      if (!state.history.length) {
+        els.history.innerHTML = "";
+        return;
+      }
+      els.history.innerHTML = state.history.map((h) => {
+        const when = new Date(h.at);
+        const stamp = Number.isNaN(when.getTime())
+          ? ""
+          : when.toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+        const tasks = (h.tasks || []);
+        const body = tasks.length
+          ? `<ul>${tasks.map((t) => `<li class="${t.done ? "done" : ""}">${t.done ? "✓ " : "○ "}${escapeHtml(t.text)}</li>`).join("")}</ul>`
+          : `<div class="empty">No tasks this session</div>`;
+        return `<article class="hist">
+          <header><span>Work · ${h.duration || state.settings.work} min</span><span>${escapeHtml(stamp)}</span></header>
+          ${body}
+        </article>`;
+      }).join("");
+    }
+
+    function renderSettings() {
+      els.work.value = state.settings.work;
+      els.short.value = state.settings.short;
+      els.long.value = state.settings.long;
+      els.interval.value = state.settings.interval;
+    }
+
+    function renderButtons() {
+      els.start.disabled = state.running;
+      els.pause.disabled = !state.running;
+      const full = durationMs(state);
+      const rem = remainingNow();
+      els.start.textContent = !state.running && rem > 0 && rem < full ? "Resume" : "Start";
+    }
+
+    function renderAll() {
+      document.body.classList.toggle("short", state.mode === "short");
+      document.body.classList.toggle("long", state.mode === "long");
+      els.mode.textContent = MODE_LABEL[state.mode];
+      els.count.textContent = String(state.todayCount);
+      renderTime();
+      renderDots();
+      renderTasks();
+      renderHistory();
+      renderSettings();
+      renderButtons();
+    }
+
+    function addTask(text) {
+      const value = text.trim();
+      if (!value) return;
+      state.tasks.push({
+        id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
+        text: value,
+        done: false,
+      });
+      save();
+      renderTasks();
+    }
+
+    function clampInt(value, min, max, fallback) {
+      const n = parseInt(value, 10);
+      if (!Number.isFinite(n)) return fallback;
+      return Math.min(max, Math.max(min, n));
+    }
+
+    function applySetting(key, min, max) {
+      const el = els[key];
+      const next = clampInt(el.value, min, max, state.settings[key]);
+      el.value = next;
+      const prev = state.settings[key];
+      if (prev === next) return;
+      state.settings[key] = next;
+      if (!state.running && (key === state.mode || (key === "work" && state.mode === "work"))) {
+        if (key === state.mode) state.remainingMs = durationMs(state);
+      }
+      save();
+      renderDots();
+      renderTime();
+    }
+
+    els.start.addEventListener("click", () => { unlockAudio(); startTimer(); });
+    els.pause.addEventListener("click", () => { unlockAudio(); pauseTimer(); });
+    els.reset.addEventListener("click", () => { unlockAudio(); resetTimer(); });
+    els.skip.addEventListener("click", () => { unlockAudio(); skipTimer(); });
+
+    els.taskForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      addTask(els.taskInput.value);
+      els.taskInput.value = "";
+      els.taskInput.focus();
+    });
+
+    els.taskList.addEventListener("click", (e) => {
+      const row = e.target.closest(".task");
+      if (!row) return;
+      const task = state.tasks.find((t) => t.id === row.dataset.id);
+      if (!task) return;
+      if (e.target.classList.contains("del")) {
+        state.tasks = state.tasks.filter((t) => t.id !== task.id);
+        save();
+        renderTasks();
+      }
+    });
+
+    els.taskList.addEventListener("change", (e) => {
+      const row = e.target.closest(".task");
+      if (!row || e.target.type !== "checkbox") return;
+      const task = state.tasks.find((t) => t.id === row.dataset.id);
+      if (!task) return;
+      task.done = e.target.checked;
+      save();
+      renderTasks();
+    });
+
+    els.work.addEventListener("change", () => applySetting("work", 1, 180));
+    els.short.addEventListener("change", () => applySetting("short", 1, 60));
+    els.long.addEventListener("change", () => applySetting("long", 1, 90));
+    els.interval.addEventListener("change", () => applySetting("interval", 1, 12));
+
+    document.addEventListener("visibilitychange", () => {
+      rollToday();
+      tick();
+      els.count.textContent = String(state.todayCount);
+    });
+
+    let state = load();
+    rollToday();
+    if (state.running && state.endAt) {
+      const rem = state.endAt - Date.now();
+      if (rem <= 0) {
+        state.remainingMs = 0;
+        onTimerEnd();
+      } else {
+        state.remainingMs = rem;
+        renderAll();
+        startTicking();
+      }
+    } else {
+      state.running = false;
+      state.endAt = null;
+      renderAll();
+    }
+  </script>
+</body>
+</html>
